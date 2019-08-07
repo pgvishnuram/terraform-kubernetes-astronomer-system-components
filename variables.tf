@@ -3,6 +3,12 @@ variable "enable_istio" {
   type    = string
 }
 
+variable "certmanager_domain" {
+  default     = ""
+  type        = string
+  description = "If this is set then cert manager will be installed and issue cert for the provided domain to the secret astronomer-tls in the namespace var.astronomer_namespace"
+}
+
 # https://cloud.google.com/sql/docs/postgres/
 variable "enable_cloud_sql_proxy" {
   default     = false

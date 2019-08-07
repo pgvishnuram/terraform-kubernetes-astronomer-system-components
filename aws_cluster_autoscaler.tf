@@ -27,6 +27,6 @@ cloudProvider: aws
 sslCertHostPath: /etc/kubernetes/pki/ca.crt
 rbac:
   create: true
-  EOF
+EOF
     ]
 }
