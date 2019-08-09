@@ -58,6 +58,12 @@ variable "gcp_service_account_key_json" {
   description = "Used when enable_cloud_sql_proxy is true"
 }
 
+variable "gcp_dns_admin_account_key_json" {
+  default     = ""
+  type        = string
+  description = "Used when enabling cert manager in GCP"
+}
+
 variable "istio_helm_release_version" {
   default = "1.1.7"
   type    = string
