@@ -52,3 +52,15 @@ resource "helm_release" "istio" {
 
   values = [var.extra_istio_helm_values]
 }
+
+resource "helm_release" "istio_local_gateway" {
+  depends_on = [helm_release.istio_init, helm_release.istio, null_resource.helm_repo]
+  count      = var.enable_istio == "true" ? 1 : 0
+  name       = "istio"
+  chart      = "./istio/install/kubernetes/helm/istio"
+  namespace  = kubernetes_namespace.istio_system[0].metadata[0].name
+  version    = var.istio_helm_release_version
+  wait       = true
+
+  values = [file("./istio-local-gateway.yaml")]
+}
