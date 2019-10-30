@@ -1,5 +1,5 @@
 variable "enable_istio" {
-  default = "false"
+  default = "true"
   type    = string
 }
 
@@ -159,4 +159,9 @@ variable "tiller_node_selectors" {
   type        = map(string)
   default     = {}
   description = "Map of {label: value} to use as node selector for Tiller deployment"
+}
+
+variable "enable_istio_local_gateway" {
+  type    = bool
+  default = false
 }
