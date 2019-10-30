@@ -50,8 +50,17 @@ resource "helm_release" "istio" {
   version    = var.istio_helm_release_version
   wait       = true
 
-  values = [
-    var.enable_istio_local_gateway ? local.istio_local_gateway_helm_values : "",
-    var.extra_istio_helm_values,
-  ]
+  values = [var.extra_istio_helm_values]
+}
+
+resource "null_resource" "istio_local_gateway" {
+  count = var.enable_istio_local_gateway ? 1 : 0
+
+  provisioner "local-exec" {
+    command = "kubectl apply -f ${path.module}/istio-local-gateway.yaml"
+
+    environment = {
+      KUBECONFIG = var.kubeconfig_path
+    }
+  }
 }
