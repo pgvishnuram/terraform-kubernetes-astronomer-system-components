@@ -1,5 +1,5 @@
 variable "enable_istio" {
-  default = "false"
+  default = "true"
   type    = string
 }
 
@@ -164,9 +164,4 @@ variable "tiller_node_selectors" {
 variable "enable_istio_local_gateway" {
   type    = bool
   default = false
-}
-
-variable "kubeconfig_path" {
-  default = ""
-  type    = string
 }

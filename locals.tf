@@ -1,3 +1,5 @@
+locals {
+  istio_local_gateway_helm_values = <<EOF
 ---
 # Source: istio/charts/gateways/templates/poddisruptionbudget.yaml
 
@@ -11,6 +13,7 @@ metadata:
     heritage: Tiller
     release: release-name
     app: cluster-local-gateway
+    istio: cluster-local-gateway
 spec:
 
   minAvailable: 1
@@ -18,6 +21,7 @@ spec:
     matchLabels:
       release: release-name
       app: cluster-local-gateway
+      istio: cluster-local-gateway
 ---
 
 ---
@@ -89,11 +93,13 @@ metadata:
     heritage: Tiller
     release: release-name
     app: cluster-local-gateway
+    istio: cluster-local-gateway
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     release: release-name
     app: cluster-local-gateway
+    istio: cluster-local-gateway
   ports:
     -
       name: http2
@@ -144,15 +150,17 @@ metadata:
     heritage: Tiller
     release: release-name
     app: cluster-local-gateway
+    istio: cluster-local-gateway
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: cluster-local-gateway
+      istio: cluster-local-gateway
   strategy:
     rollingUpdate:
-      maxSurge: 
-      maxUnavailable: 
+      maxSurge:
+      maxUnavailable:
   template:
     metadata:
       labels:
@@ -160,6 +168,7 @@ spec:
         heritage: Tiller
         release: release-name
         app: cluster-local-gateway
+        istio: cluster-local-gateway
       annotations:
         sidecar.istio.io/inject: "false"
     spec:
@@ -218,7 +227,7 @@ spec:
           resources:
             requests:
               cpu: 10m
-            
+
           env:
           - name: NODE_NAME
             valueFrom:
@@ -287,7 +296,7 @@ spec:
         secret:
           secretName: "istio-clusterlocalgateway-ca-certs"
           optional: true
-      affinity:      
+      affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
@@ -319,75 +328,6 @@ spec:
               - key: beta.kubernetes.io/arch
                 operator: In
                 values:
-                - "s390x"      
----
-
----
-# Source: istio/charts/gateways/templates/autoscale.yaml
-
-
----
-# Source: istio/charts/gateways/templates/preconfigured.yaml
-
-
----
-# Source: istio/charts/gateways/templates/role.yaml
-
-
----
-# Source: istio/charts/gateways/templates/rolebindings.yaml
-
-
----
-# Source: istio/charts/mixer/templates/autoscale.yaml
-
-
----
-# Source: istio/charts/mixer/templates/clusterrole.yaml
-
-
----
-# Source: istio/charts/mixer/templates/clusterrolebinding.yaml
-
-
----
-# Source: istio/charts/mixer/templates/config.yaml
-
-
----
-# Source: istio/charts/mixer/templates/deployment.yaml
- 
-
----
-# Source: istio/charts/mixer/templates/poddisruptionbudget.yaml
-
-
----
-# Source: istio/charts/mixer/templates/service.yaml
-
-
-
----
-# Source: istio/charts/mixer/templates/serviceaccount.yaml
-
-
----
-# Source: istio/templates/configmap.yaml
-
-
----
-# Source: istio/templates/endpoints.yaml
-
-
----
-# Source: istio/templates/install-custom-resources.sh.tpl
-
-
----
-# Source: istio/templates/service.yaml
-
-
----
-# Source: istio/templates/sidecar-injector-configmap.yaml
-
-
+                - "s390x"
+EOF
+}
