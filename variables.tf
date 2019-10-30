@@ -1,5 +1,5 @@
 variable "enable_istio" {
-  default = "true"
+  default = "false"
   type    = string
 }
 

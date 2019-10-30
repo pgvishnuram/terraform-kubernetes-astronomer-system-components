@@ -1,333 +1,154 @@
 locals {
+  istio_local_gateway_helm_set_list = {
+    "gateways.custom-gateway.autoscaleMin"                 = "1"
+    "gateways.custom-gateway.autoscaleMax"                 = "1"
+    "gateways.custom-gateway.cpu.targetAverageUtilization" = "60"
+    "gateways.custom-gateway.labels.app"                   = "cluster-local-gateway"
+    "gateways.custom-gateway.labels.istio"                 = "cluster-local-gateway"
+    "gateways.custom-gateway.type"                         = "ClusterIP"
+    "gateways.istio-ingressgateway.enabled"                = "false"
+    "gateways.istio-egressgateway.enabled"                 = "false"
+    "gateways.istio-ilbgateway.enabled"                    = "false"
+  }
+
   istio_local_gateway_helm_values = <<EOF
 ---
-# Source: istio/charts/gateways/templates/poddisruptionbudget.yaml
 
-apiVersion: policy/v1beta1
-kind: PodDisruptionBudget
-metadata:
-  name: cluster-local-gateway
-  namespace: istio-system
-  labels:
-    chart: gateways
-    heritage: Tiller
-    release: release-name
-    app: cluster-local-gateway
-    istio: cluster-local-gateway
-spec:
+# Common settings.
+global:
+  # Omit the istio-sidecar-injector configmap when generate a
+  # standalone gateway. Gateways may be created in namespaces other
+  # than `istio-system` and we don't want to re-create the injector
+  # configmap in those.
+  omitSidecarInjectorConfigMap: true
 
-  minAvailable: 1
-  selector:
-    matchLabels:
-      release: release-name
+  # Istio control plane namespace: This specifies where the Istio control
+  # plane was installed earlier.  Modify this if you installed the control
+  # plane in a different namespace than istio-system.
+  istioNamespace: istio-system
+
+  proxy:
+    # Sets the destination Statsd in envoy (the value of the "--statsdUdpAddress" proxy argument
+    # would be <host>:<port>).
+    # Disabled by default.
+    # The istio-statsd-prom-bridge is deprecated and should not be used moving forward.
+    envoyStatsd:
+      # If enabled is set to true, host and port must also be provided. Istio no longer provides a statsd collector.
+      enabled: false
+      host: # example: statsd-svc.istio-system
+      port: # example: 9125
+
+
+#
+# Gateways Configuration
+# By default (if enabled) a pair of Ingress and Egress Gateways will be created for the mesh.
+# You can add more gateways in addition to the defaults but make sure those are uniquely named
+# and that NodePorts are not conflicting.
+# Disable specific gateway by setting the `enabled` to false.
+#
+gateways:
+  enabled: true
+
+  cluster-local-gateway:
+    enabled: true
+    labels:
       app: cluster-local-gateway
-      istio: cluster-local-gateway
----
-
----
-# Source: istio/charts/gateways/templates/serviceaccount.yaml
-
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: cluster-local-gateway-service-account
-  namespace: istio-system
-  labels:
-    app: cluster-local-gateway
-    chart: gateways
-    heritage: Tiller
-    release: release-name
----
-
-
----
-# Source: istio/templates/serviceaccount.yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: istio-multi
-  namespace: istio-system
-
----
-# Source: istio/templates/clusterrole.yaml
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: istio-reader
-rules:
-  - apiGroups: ['']
-    resources: ['nodes', 'pods', 'services', 'endpoints', "replicationcontrollers"]
-    verbs: ['get', 'watch', 'list']
-  - apiGroups: ["extensions", "apps"]
-    resources: ["replicasets"]
-    verbs: ["get", "list", "watch"]
-
----
-# Source: istio/templates/clusterrolebinding.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: istio-multi
-  labels:
-    chart: istio-1.3.0
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: istio-reader
-subjects:
-- kind: ServiceAccount
-  name: istio-multi
-  namespace: istio-system
-
----
-# Source: istio/charts/gateways/templates/service.yaml
-
-apiVersion: v1
-kind: Service
-metadata:
-  name: cluster-local-gateway
-  namespace: istio-system
-  annotations:
-  labels:
-    chart: gateways
-    heritage: Tiller
-    release: release-name
-    app: cluster-local-gateway
-    istio: cluster-local-gateway
-spec:
-  type: ClusterIP
-  selector:
-    release: release-name
-    app: cluster-local-gateway
-    istio: cluster-local-gateway
-  ports:
-    -
-      name: http2
-      port: 80
+    replicaCount: 1
+    autoscaleMin: 1
+    autoscaleMax: 5
+    resources: {}
+      # limits:
+      #  cpu: 100m
+      #  memory: 128Mi
+      #requests:
+      #  cpu: 1800m
+      #  memory: 256Mi
+    cpu:
+      targetAverageUtilization: 80
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: {}
+    externalIPs: []
+    serviceAnnotations: {}
+    podAnnotations: {}
+    type: LoadBalancer #change to NodePort, ClusterIP or LoadBalancer if need be
+    #externalTrafficPolicy: Local #change to Local to preserve source IP or Cluster for default behaviour or leave commented out
+    ports:
+      ## You can add custom gateway ports
+    - port: 80
       targetPort: 80
-    -
+      name: http2
+      # nodePort: 31380
+    - port: 443
       name: https
-      port: 443
-    -
+      # nodePort: 31390
+    - port: 31400
       name: tcp
-      port: 31400
-    -
-      name: tcp-pilot-grpc-tls
-      port: 15011
+      # nodePort: 31400
+    # Pilot and Citadel MTLS ports are enabled in gateway - but will only redirect
+    # to pilot/citadel if global.meshExpansion settings are enabled.
+    - port: 15011
       targetPort: 15011
-    -
-      name: tcp-citadel-grpc-tls
-      port: 8060
+      name: tcp-pilot-grpc-tls
+    - port: 8060
       targetPort: 8060
-    -
-      name: http2-kiali
-      port: 15029
+      name: tcp-citadel-grpc-tls
+    # Addon ports for kiali are enabled in gateway - but will only redirect if
+    # the gateway configuration for the various components are enabled.
+    - port: 15029
       targetPort: 15029
-    -
-      name: http2-prometheus
-      port: 15030
+      name: http2-kiali
+    # Telemetry-related ports are enabled in gateway - but will only redirect if
+    # the gateway configuration for the various components are enabled.
+    - port: 15030
       targetPort: 15030
-    -
-      name: http2-grafana
-      port: 15031
+      name: http2-prometheus
+    - port: 15031
       targetPort: 15031
-    -
-      name: http2-tracing
-      port: 15032
+      name: http2-grafana
+    - port: 15032
       targetPort: 15032
----
+      name: http2-tracing
+    secretVolumes:
+    - name: clusterlocalgateway-certs
+      secretName: istio-clusterlocalgateway-certs
+      mountPath: /etc/istio/clusterlocalgateway-certs
+    - name: clusterlocalgateway-ca-certs
+      secretName: istio-clusterlocalgateway-ca-certs
+      mountPath: /etc/istio/clusterlocalgateway-ca-certs
 
----
-# Source: istio/charts/gateways/templates/deployment.yaml
+# all other components are disabled except the gateways
+security:
+  enabled: false
 
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: cluster-local-gateway
-  namespace: istio-system
-  labels:
-    chart: gateways
-    heritage: Tiller
-    release: release-name
-    app: cluster-local-gateway
-    istio: cluster-local-gateway
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: cluster-local-gateway
-      istio: cluster-local-gateway
-  strategy:
-    rollingUpdate:
-      maxSurge:
-      maxUnavailable:
-  template:
-    metadata:
-      labels:
-        chart: gateways
-        heritage: Tiller
-        release: release-name
-        app: cluster-local-gateway
-        istio: cluster-local-gateway
-      annotations:
-        sidecar.istio.io/inject: "false"
-    spec:
-      serviceAccountName: cluster-local-gateway-service-account
-      containers:
-        - name: istio-proxy
-          image: "docker.io/istio/proxyv2:1.3.0"
-          imagePullPolicy: IfNotPresent
-          ports:
-            - containerPort: 80
-            - containerPort: 443
-            - containerPort: 31400
-            - containerPort: 15011
-            - containerPort: 8060
-            - containerPort: 15029
-            - containerPort: 15030
-            - containerPort: 15031
-            - containerPort: 15032
-            - containerPort: 15090
-              protocol: TCP
-              name: http-envoy-prom
-          args:
-          - proxy
-          - router
-          - --domain
-          - $(POD_NAMESPACE).svc.cluster.local
-          - --log_output_level=default:info
-          - --drainDuration
-          - '45s' #drainDuration
-          - --parentShutdownDuration
-          - '1m0s' #parentShutdownDuration
-          - --connectTimeout
-          - '10s' #connectTimeout
-          - --serviceCluster
-          - cluster-local-gateway
-          - --zipkinAddress
-          - zipkin.istio-system:9411
-          - --proxyAdminPort
-          - "15000"
-          - --statusPort
-          - "15020"
-          - --controlPlaneAuthPolicy
-          - NONE
-          - --discoveryAddress
-          - istio-pilot.istio-system:15010
-          readinessProbe:
-            failureThreshold: 30
-            httpGet:
-              path: /healthz/ready
-              port: 15020
-              scheme: HTTP
-            initialDelaySeconds: 1
-            periodSeconds: 2
-            successThreshold: 1
-            timeoutSeconds: 1
-          resources:
-            requests:
-              cpu: 10m
+sidecarInjectorWebhook:
+  enabled: false
 
-          env:
-          - name: NODE_NAME
-            valueFrom:
-              fieldRef:
-                apiVersion: v1
-                fieldPath: spec.nodeName
-          - name: POD_NAME
-            valueFrom:
-              fieldRef:
-                apiVersion: v1
-                fieldPath: metadata.name
-          - name: POD_NAMESPACE
-            valueFrom:
-              fieldRef:
-                apiVersion: v1
-                fieldPath: metadata.namespace
-          - name: INSTANCE_IP
-            valueFrom:
-              fieldRef:
-                apiVersion: v1
-                fieldPath: status.podIP
-          - name: HOST_IP
-            valueFrom:
-              fieldRef:
-                apiVersion: v1
-                fieldPath: status.hostIP
-          - name: SERVICE_ACCOUNT
-            valueFrom:
-              fieldRef:
-                fieldPath: spec.serviceAccountName
-          - name: ISTIO_META_POD_NAME
-            valueFrom:
-              fieldRef:
-                apiVersion: v1
-                fieldPath: metadata.name
-          - name: ISTIO_META_CONFIG_NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: SDS_ENABLED
-            value: "false"
-          - name: ISTIO_META_WORKLOAD_NAME
-            value: cluster-local-gateway
-          - name: ISTIO_META_OWNER
-            value: kubernetes://api/apps/v1/namespaces/istio-system/deployments/cluster-local-gateway
-          volumeMounts:
-          - name: istio-certs
-            mountPath: /etc/certs
-            readOnly: true
-          - name: clusterlocalgateway-certs
-            mountPath: "/etc/istio/clusterlocalgateway-certs"
-            readOnly: true
-          - name: clusterlocalgateway-ca-certs
-            mountPath: "/etc/istio/clusterlocalgateway-ca-certs"
-            readOnly: true
-      volumes:
-      - name: istio-certs
-        secret:
-          secretName: istio.cluster-local-gateway-service-account
-          optional: true
-      - name: clusterlocalgateway-certs
-        secret:
-          secretName: "istio-clusterlocalgateway-certs"
-          optional: true
-      - name: clusterlocalgateway-ca-certs
-        secret:
-          secretName: "istio-clusterlocalgateway-ca-certs"
-          optional: true
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: beta.kubernetes.io/arch
-                operator: In
-                values:
-                - "amd64"
-                - "ppc64le"
-                - "s390x"
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 2
-            preference:
-              matchExpressions:
-              - key: beta.kubernetes.io/arch
-                operator: In
-                values:
-                - "amd64"
-          - weight: 2
-            preference:
-              matchExpressions:
-              - key: beta.kubernetes.io/arch
-                operator: In
-                values:
-                - "ppc64le"
-          - weight: 2
-            preference:
-              matchExpressions:
-              - key: beta.kubernetes.io/arch
-                operator: In
-                values:
-                - "s390x"
+galley:
+  enabled: false
+
+mixer:
+  policy:
+    enabled: false
+  telemetry:
+    enabled: false
+
+pilot:
+  enabled: false
+
+grafana:
+  enabled: false
+
+prometheus:
+  enabled: false
+
+tracing:
+  enabled: false
+
+kiali:
+  enabled: false
+
+certmanager:
+  enabled: false
+
 EOF
 }
