@@ -63,4 +63,8 @@ resource "null_resource" "istio_local_gateway" {
       KUBECONFIG = var.kubeconfig_path
     }
   }
+
+  triggers = {
+    istio_local_gateway_file = file("${path.module}/istio-local-gateway.yaml")
+  }
 }
