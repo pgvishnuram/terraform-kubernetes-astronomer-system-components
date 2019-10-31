@@ -51,7 +51,7 @@ resource "helm_release" "istio" {
   wait       = true
 
   values = [
-    local.istio_local_gateway_helm_values,
+    local.istio_local_gateway_helm_values, var.extra_istio_helm_values
   ]
 
   dynamic "set" {
