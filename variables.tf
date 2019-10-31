@@ -1,5 +1,5 @@
 variable "enable_istio" {
-  default = "false"
+  default = "true"
   type    = string
 }
 
@@ -163,5 +163,11 @@ variable "tiller_node_selectors" {
 
 variable "enable_istio_local_gateway" {
   type    = bool
-  default = false
+  default = true
+}
+
+variable "istio_local_development" {
+  default     = true
+  type        = bool
+  description = "When using kubernetes kind for creating cluster turn this to true"
 }
