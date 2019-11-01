@@ -171,3 +171,13 @@ variable "knative_helm_release_version" {
   default     = "0.1.0"
   description = "Helm Chart Version to use to deploy Knative"
 }
+
+variable "enable_knative" {
+  type    = bool
+  default = false
+}
+
+variable "knative_helm_release_version" {
+  default     = "0.1.0"
+  description = "Helm Chart Version to use to deploy Knative"
+}
