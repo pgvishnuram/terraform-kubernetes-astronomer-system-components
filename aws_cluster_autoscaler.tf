@@ -13,7 +13,7 @@ resource "helm_release" "cluster_autoscaler" {
   name       = "cluster-autoscaler"
   version    = "7.3.4"
   chart      = "cluster-autoscaler"
-  repository = "https://kubernetes-charts.storage.googleapis.com"
+  repository = "https://charts.helm.sh/stable"
   namespace  = kubernetes_namespace.cluster_autoscaler[0].metadata[0].name
   wait       = true
 
